@@ -314,23 +314,24 @@ textarea.input{resize:vertical;min-height:72px;line-height:1.5}
 .paysub{font-size:12px;color:var(--fg-subtle)}
 @media (max-width:560px){.paygrid{grid-template-columns:1fr;justify-items:center}.paydetails{width:100%}}
 
-/* print: hide the whole app chrome and print ONLY the invoice document, clean and on white
-   regardless of light/dark theme (Print -> Save as PDF). */
+/* print: remove the app chrome from the flow and print ONLY the invoice document, clean and on
+   white in both light and dark theme (Print -> Save as PDF). Using display:none (not visibility)
+   means hidden content reserves no space, so there are no blank pages or overlap. */
 @media print{
-  @page{margin:16mm}
-  html,body{background:#fff!important}
-  body::before,body::after{display:none!important}         /* kill ambient glow + film grain */
-  body *{visibility:hidden!important}                        /* hide everything... */
-  .doc,.doc *{visibility:visible!important}                  /* ...then reveal just the invoice */
-  .doc{position:absolute;left:0;top:0;width:100%;max-width:none!important;margin:0!important;
-       padding:0!important;border:none!important;border-radius:0!important;box-shadow:none!important;
-       background:#fff!important;animation:none!important}
+  @page{margin:14mm}
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  body::before,body::after{display:none!important}          /* kill ambient glow + film grain */
+  .sidebar,.topbar,.mobile-nav,.nav-foot,.back-link,.page-head,.alert,.kpi,.grid,.stepper,.card:not(.doc){display:none!important}
+  #app{display:block!important}
+  .main,.content{display:block!important;margin:0!important;padding:0!important;max-width:none!important;width:auto!important}
+  .doc{margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;max-width:none!important;width:auto!important;background:#fff!important;animation:none!important}
   .doc,.doc *{color:#1a1a1a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .doc .muted,.doc .lbl,.doc .doc-note,.doc .doc-meta,.doc .biz,.doc .d2,.doc .totals .tr{color:#666!important}
-  .doc strong,.doc .biz strong,.doc .doc-meta .n,.doc .li-group .gh,.doc .totals .tr .mono,.doc .totals .tr.grand{color:#1a1a1a!important}
-  .doc .li-group .gh,.doc .totals .tr.grand{border-color:#1a1a1a!important}
+  .doc .muted,.doc .lbl,.doc .doc-note,.doc .doc-meta,.doc .biz,.doc .d2,.doc .totals .tr{color:#555!important}
+  .doc strong,.doc .biz strong,.doc .doc-meta .n,.doc .li-group .gh,.doc .totals .tr .mono,.doc .totals .tr.grand{color:#111!important}
+  .doc .li-group .gh,.doc .totals .tr.grand{border-color:#111!important}
   .doc .doc-note{border-color:#ccc!important}
   .doc .pill{border:1px solid #ccc!important;background:#fff!important;color:#444!important}
+  .doc .li-group,.doc .totals,.doc .doc-top,.doc .bill-grid{break-inside:avoid}
 }
 /* hidden file-input wrapped in a button-styled label */
 .btn input[type=file]{position:absolute;width:1px;height:1px;opacity:0}

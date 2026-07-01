@@ -107,11 +107,11 @@ function aiWithPersona(role,messages){
 async function aiChat(role,messages,opts){
   opts=opts||{};
   const model=opts.model||aiModel(role);
-  if(!model)throw new Error('No model configured for "'+role+'" (Settings → AI features).');
+  if(!model)throw new Error('No model configured for "'+role+'" (Settings → Smart features).');
   const res=await fetch(AI_BASE+'/v1/chat/completions',{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({model,messages:aiWithPersona(role,messages),temperature:opts.temperature==null?0.2:opts.temperature,max_tokens:opts.max_tokens||1024})});
-  if(!res.ok){let t='';try{t=await res.text();}catch(e){}throw new Error('AI '+res.status+': '+String(t).slice(0,300));}
+  if(!res.ok){let t='';try{t=await res.text();}catch(e){}throw new Error('Error '+res.status+': '+String(t).slice(0,300));}
   const data=await res.json();
   return (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
 }
@@ -123,12 +123,13 @@ function aiParseJSON(txt){
   if(s>=0&&e>s)txt=txt.slice(s,e+1);
   try{return JSON.parse(txt);}catch(err){return null;}
 }
-/* Fast default models. The message + request roles use a quick non-reasoning instruct model; the old
-   49B reasoning model was dropped because its hidden thinking tokens made every call very slow. */
+/* Fast default models. The message + request roles use a small 8B instruct model so a draft comes back
+   in seconds; the earlier 70B / 49B-reasoning defaults were the cause of the 1min+ waits. */
+const AI_FAST='meta/llama-3.1-8b-instruct';
 function aiDefaults(){return {enabled:false,models:{
-  vision:'nvidia/nemotron-nano-12b-v2-vl',followup:'meta/llama-3.3-70b-instruct',scope:'meta/llama-3.3-70b-instruct'}};}
-/* Slugs that shipped as defaults but resolve slowly or not at all on NVIDIA — remap to verified-fast ids. */
-const AI_SLUG_FIXES={'deepseek-ai/deepseek-v4-pro':'meta/llama-3.3-70b-instruct','qwen/qwen3.5-122b-a10b':'meta/llama-3.3-70b-instruct','nvidia/llama-3.3-nemotron-super-49b-v1':'meta/llama-3.3-70b-instruct'};
+  vision:'nvidia/nemotron-nano-12b-v2-vl',followup:AI_FAST,scope:AI_FAST}};}
+/* Slugs that shipped as defaults but resolve slowly or not at all on NVIDIA — remap to the fast id. */
+const AI_SLUG_FIXES={'deepseek-ai/deepseek-v4-pro':AI_FAST,'qwen/qwen3.5-122b-a10b':AI_FAST,'nvidia/llama-3.3-nemotron-super-49b-v1':AI_FAST};
 
 /* ============================== UTIL ============================== */
 const uid=p=>(p||'id')+'_'+Math.random().toString(36).slice(2,9);
@@ -271,7 +272,7 @@ function migrate(st){
   if(s.payLink==null)s.payLink='';
   if(s.lastBackup==null)s.lastBackup='';
   delete s.taxRate;delete s.taxLabel;/* tax/VAT removed */
-  if(!s.ai)s.ai=aiDefaults();else{const d=aiDefaults();delete s.ai.proxyUrl;if(typeof s.ai.enabled!=='boolean')s.ai.enabled=false;if(!s.ai.models)s.ai.models={};['vision','followup','scope'].forEach(k=>{if(s.ai.models[k]==null)s.ai.models[k]=d.models[k];if(AI_SLUG_FIXES[s.ai.models[k]])s.ai.models[k]=AI_SLUG_FIXES[s.ai.models[k]];});}
+  if(!s.ai)s.ai=aiDefaults();else{const d=aiDefaults();delete s.ai.proxyUrl;if(typeof s.ai.enabled!=='boolean')s.ai.enabled=false;if(!s.ai.models)s.ai.models={};['vision','followup','scope'].forEach(k=>{if(s.ai.models[k]==null)s.ai.models[k]=d.models[k];if(AI_SLUG_FIXES[s.ai.models[k]])s.ai.models[k]=AI_SLUG_FIXES[s.ai.models[k]];});if(!s.ai._speed){['followup','scope'].forEach(k=>{if(s.ai.models[k]==='meta/llama-3.3-70b-instruct')s.ai.models[k]=AI_FAST;});s.ai._speed=1;}}
   (st.clients||[]).forEach(c=>{if(c.phone==null)c.phone='';if(c.referredBy==null)c.referredBy='';});
   (st.projects||[]).forEach(p=>{
     if(!p.reschedulePolicy)p.reschedulePolicy={freeCount:1,reblockFee:0};

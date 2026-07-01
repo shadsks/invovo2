@@ -100,12 +100,12 @@ const App={
     const body=`
       <div class="field"><label>Situation</label><select class="input" id="c-sit" onchange="composerRegen()">${ASK_SITUATIONS.map(s=>`<option value="${s.v}" ${s.v===COMPOSER.sit?'selected':''}>${s.l}</option>`).join('')}</select></div>
       <div class="field"><label>Tone</label><div class="seg" id="c-seg">${seg('warm')}${seg('firm')}${seg('final')}</div></div>
-      ${aiReady()?`<div class="field"><label>Their recent messages (optional — for AI tone match)</label><textarea class="input" id="c-thread" style="min-height:56px" placeholder="Paste the client's last few messages so the AI matches their Taglish / formality."></textarea></div>`:''}
+      ${aiReady()?`<div class="field"><label>Their recent messages (optional — for tone match)</label><textarea class="input" id="c-thread" style="min-height:56px" placeholder="Paste the client's last few messages so the draft matches their Taglish / formality."></textarea></div>`:''}
       <div class="field"><label>Message</label><textarea class="input" id="c-out" style="min-height:170px;line-height:1.55"></textarea></div>
       <div class="hint">${state.settings.payLink?'Your pay link is appended automatically.':'Add a Pay Link in Settings and it rides on every ask.'} Sending copies the text first, then opens the app.</div>`;
     const send=SEND_CHANNELS.map(ch=>`<button class="btn btn-sm" onclick="App._sendVia('${ch.v}')">${ico(ch.ico)} ${ch.l}</button>`).join('');
-    const foot=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-right:auto">${send}</div>${aiReady()?`<button class="btn" id="c-aidraft" onclick="App.aiDraft()">${ico('bolt')} AI draft</button><button class="btn" id="c-tonecheck" onclick="App.aiToneCheck()">${ico('check')} Tone check</button>`:''}<button class="btn" onclick="App._copyAsk()">${ico('copy')} Copy</button>`;
-    openModal('Compose &amp; send the ask',body,foot,true);
+    const foot=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-right:auto">${send}</div>${aiReady()?`<button class="btn" id="c-aidraft" onclick="App.aiDraft()">${ico('bolt')} Smart draft</button><button class="btn" id="c-tonecheck" onclick="App.aiToneCheck()">${ico('check')} Tone check</button>`:''}<button class="btn" onclick="App._copyAsk()">${ico('copy')} Copy</button>`;
+    openModal('Compose & send the ask',body,foot,true);
     setTimeout(composerRegen,30);
   },
   _tone(t){COMPOSER.tone=t;document.querySelectorAll('#c-seg button').forEach(b=>b.classList.toggle('on',b.dataset.tone===t));composerRegen();},
@@ -375,7 +375,7 @@ const App={
     inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>cb(r.result,f);r.readAsDataURL(f);};inp.click();},
   _shrinkImage(dataUrl,cb){try{const img=new Image();img.onload=()=>{const max=1400;let w=img.width,h=img.height;const sc=Math.min(1,max/Math.max(w,h));const cw=Math.max(1,Math.round(w*sc)),ch=Math.max(1,Math.round(h*sc));const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;cv.getContext('2d').drawImage(img,0,0,cw,ch);try{cb(cv.toDataURL('image/jpeg',0.85));}catch(e){cb(dataUrl);}};img.onerror=()=>cb(dataUrl);img.src=dataUrl;}catch(e){cb(dataUrl);}},
   readShot(t){t=t||{};
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const note=t.note&&document.getElementById(t.note);
     App._pickImage((raw)=>App._shrinkImage(raw,async(dataUrl)=>{
       if(note)note.innerHTML='<span class="muted">'+ico('clock')+' Reading screenshot…</span>';
@@ -396,7 +396,7 @@ const App={
 
   /* ===== AI: Feature 3 — register-matched follow-up draft (writes into the composer) ===== */
   async aiDraft(){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const thread=(document.getElementById('c-thread')||{}).value||'';
     const out=document.getElementById('c-out'),sitSel=document.getElementById('c-sit');
     const sit=sitSel?sitSel.value:COMPOSER.sit,c=COMPOSER.ctx,tone=COMPOSER.tone;
@@ -410,17 +410,17 @@ const App={
         '\nWrite my message now.';
       const reply=await aiChat('followup',[{role:'system',content:sys},{role:'user',content:usr}],{temperature:0.5,max_tokens:500});
       if(out&&reply.trim())out.value=reply.trim();
-      toast('AI draft ready — review before sending',true);
+      toast('Smart draft ready — review before sending',true);
     }catch(e){toast(String(e.message||e));}
-    finally{const b=document.getElementById('c-aidraft');if(b){b.disabled=false;b.innerHTML=ico('bolt')+' AI draft';}}},
+    finally{const b=document.getElementById('c-aidraft');if(b){b.disabled=false;b.innerHTML=ico('bolt')+' Smart draft';}}},
 
   /* ===== AI: Feature 4 — scope-creep / revision detector ===== */
   checkScope(pid){const p=projectById(pid);
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const rev=p.revision||{included:0,perRoundFee:0};
     openModal('Check a client request',`
       <div class="field"><label>Paste the client's new request</label><textarea class="input" id="sc-req" style="min-height:90px" placeholder="e.g. Pwede pa-edit ng konti yung color, tas dagdag 3 more photos? Salamat!"></textarea></div>
-      <div class="hint">AI weighs it against this project's agreed scope: ${rev.included} revision round(s) included, ${fmt(rev.perRoundFee)} per extra round, ${(rev.rounds||[]).length} logged.</div>
+      <div class="hint">Weighed against this project's agreed scope: ${rev.included} revision round(s) included, ${fmt(rev.perRoundFee)} per extra round, ${(rev.rounds||[]).length} logged.</div>
       <div id="sc-out" style="margin-top:12px"></div>`,
       `<button class="btn" onclick="closeModal()">Close</button><button class="btn btn-primary" id="sc-go" onclick="App.runScope('${pid}')">${ico('bolt')} Check request</button>`,true);},
   async runScope(pid){const p=projectById(pid),cli=clientById(p.clientId);
@@ -434,7 +434,7 @@ const App={
       const usr=`Project type: ${p.type}. Creative fee: ${fmt(p.creativeFee)}.\nRevision policy: ${rev.included} rounds included at ${fmt(rev.perRoundFee)} per extra round; ${usedRounds} round(s) already logged.\nDeliverable: ${(p.deliverable&&p.deliverable.type)||'not set'}.\nClient name: ${cli?cli.name:'(client)'}.\nFor a billable extra revision, suggestedCharge should be ${rev.perRoundFee}; for a new change order, estimate a fair PHP amount.\n\nClient request:\n"""\n${req.trim()}\n"""`;
       const reply=await aiChat('scope',[{role:'system',content:sys},{role:'user',content:usr}],{temperature:0.2,max_tokens:600});
       const j=aiParseJSON(reply);
-      if(!j){out.innerHTML='<div class="callout amber">Could not parse the AI response. Try again.</div>';return;}
+      if(!j){out.innerHTML='<div class="callout amber">Could not parse the response. Try again.</div>';return;}
       const billable=j.verdict==='billable',charge=Number(j.suggestedCharge||0);
       out.innerHTML=`
         <div class="callout ${billable?'amber':'accent'}"><b>${billable?'Billable add-on':'In scope'}</b>${billable&&charge?` — suggested ${fmt(charge)}`:''}<br><span style="font-size:13px">${esc(j.reason||'')}</span></div>
@@ -456,8 +456,8 @@ const App={
 
   /* ===== AI #6 — proposal / quote generator ===== */
   aiProposal(){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
-    openModal('AI quote / proposal',`
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
+    openModal('Smart quote / proposal',`
       <div class="field"><label>Client / company (optional)</label><input class="input" id="q-client" placeholder="e.g. Kape Republik"></div>
       <div class="field"><label>Project type</label><select class="input" id="q-type">${['Photo','Video','Illustration','Design','Retainer','Event coverage'].map(x=>`<option>${x}</option>`).join('')}</select></div>
       <div class="field"><label>Scope — what they want</label><textarea class="input" id="q-scope" style="min-height:90px" placeholder="e.g. Half-day product shoot, 15 finished photos, 1 location, 2 revision rounds"></textarea></div>
@@ -481,7 +481,7 @@ const App={
 
   /* ===== AI #7 — supplier-receipt OCR → pass-through ===== */
   scanReceipt(pid){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const CATS=['Studio','Equipment','Crew','Catering','Location','Props','Travel','Other'];
     App._pickImage((raw)=>App._shrinkImage(raw,async(dataUrl)=>{
       toast('Reading receipt…');
@@ -496,17 +496,17 @@ const App={
           {name:'category',label:'Category',type:'select',value:CATS.indexOf(j.category)>=0?j.category:'Other',options:CATS.map(c=>({v:c,l:c}))},
           {name:'cost',label:'Your cost',type:'number',value:Number(j.cost)||0,required:true},
           {name:'markupPct',label:'Markup %',type:'number',value:0,hint:'0 bills at cost.'},
-        ],v=>{p.passThroughs.push({id:uid('pt'),label:v.label,category:v.category,cost:Number(v.cost)||0,markupPct:Number(v.markupPct)||0,billable:true});toast('Pass-through added from receipt',true);commit();},{note:'Read from your screenshot by AI — check the numbers before saving.'});
+        ],v=>{p.passThroughs.push({id:uid('pt'),label:v.label,category:v.category,cost:Number(v.cost)||0,markupPct:Number(v.markupPct)||0,billable:true});toast('Pass-through added from receipt',true);commit();},{note:'Read from your screenshot — check the numbers before saving.'});
       }catch(e){toast(String((e&&e.message)||e));}
     }));
   },
 
   /* ===== AI #8 — escalating reminder ladder ===== */
   async aiReminderLadder(invId){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const inv=invoiceById(invId),c=clientById(inv.clientId),p=projectById(inv.projectId);
     const d=daysOverdue(inv),amt=invoiceTotal(inv).total;
-    openModal('AI reminder ladder',`<div id="rl-out" class="hint">${ico('clock')} Drafting four escalating reminders…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    openModal('Reminder ladder',`<div id="rl-out" class="hint">${ico('clock')} Drafting four escalating reminders…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
     try{
       const sys='You are a Filipino creative freelancer. Write FOUR escalating payment-reminder messages for one overdue invoice in warm-but-firm Taglish suitable for a PH client. Respect hiya but get paid. Return ONLY JSON: {"friendly":string,"firm":string,"final":string,"formal":string}. friendly=gentle nudge; firm=clear ask with a deadline; final=files-stay-locked warning; formal=written final notice before collections. Never invent amounts or dates beyond what is given.';
       const usr=`Client: ${c?c.name:'(client)'}.\nProject: ${p?p.title:''}.\nAmount: ${fmt(amt)}.\nDays overdue: ${d}.\nSign off: ${state.settings.businessName}.${state.settings.payLink?'\nPay link: '+state.settings.payLink:''}`;
@@ -520,9 +520,9 @@ const App={
 
   /* ===== AI #9 — payment-risk briefing ===== */
   async aiRiskBriefing(){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const data=state.clients.map(c=>{const r=clientRisk(c.id);return {name:c.company||c.name,avg:r.avg,n:r.n||0};});
-    openModal('AI payment-risk briefing',`<div id="rb-out" class="hint">${ico('clock')} Analyzing your clients…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    openModal('Payment-risk briefing',`<div id="rb-out" class="hint">${ico('clock')} Analyzing your clients…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
     try{
       const sys='You are a financial advisor for a Filipino creative freelancer. Given each client\'s average days-late and paid-invoice count, write a short briefing: who to watch, who to trust, and concrete terms to set per risky client (reservation %, net days, whether to gate files). Be specific and PH-appropriate. Plain text, short paragraphs or bullets.';
       const usr='Clients (avg days late; negative = pays early; n = paid invoices):\n'+(data.length?data.map(d=>`- ${d.name}: ${d.avg==null?'no history':d.avg+' days, n='+d.n}`).join('\n'):'(no clients)');
@@ -533,9 +533,9 @@ const App={
 
   /* ===== AI #10 — cash-flow forecast explainer ===== */
   async aiForecast(){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const fc=forecast();const open=buildAlerts().filter(a=>a.money).slice(0,8).map(a=>`${a.title} (${fmt(a.money)})`);
-    openModal('AI cash-flow read',`<div id="fc-out" class="hint">${ico('clock')} Reading your forecast…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    openModal('Cash-flow read',`<div id="fc-out" class="hint">${ico('clock')} Reading your forecast…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
     try{
       const sys='You are a cash-flow advisor for a Filipino creative freelancer. Given a 3-month projected-income forecast and the current billable open items, explain in plain language which months are thin or strong and the 2–3 most important actions to take this week to smooth cash flow. Be concrete and reference amounts. Keep it short.';
       const usr='Forecast (PHP):\n'+fc.map(b=>`- ${b.label}: ${fmt(b.amount)}`).join('\n')+'\n\nOpen billable items:\n'+(open.join('\n')||'(none)');
@@ -546,7 +546,7 @@ const App={
 
   /* ===== AI #11 — outgoing-message tone guard ===== */
   async aiToneCheck(){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const out=document.getElementById('c-out');if(!out||!out.value.trim()){toast('Write or generate a message first');return;}
     App._spin('c-tonecheck','Checking…');
     try{
@@ -563,11 +563,11 @@ const App={
 
   /* ===== AI #16 — discount / "pa-tawad" coach ===== */
   aiHaggle(pid){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const p=projectById(pid);
     openModal('Handle a discount request',`
       <div class="field"><label>Paste what the client said</label><textarea class="input" id="hg-req" style="min-height:90px" placeholder="e.g. Ang mahal naman po, pwede ba 30k na lang? Budget lang talaga namin."></textarea></div>
-      <div class="hint">This project's fee: ${fmt(p.creativeFee)}. The AI holds your value — it trades scope, not price.</div>
+      <div class="hint">This project's fee: ${fmt(p.creativeFee)}. This holds your value — it trades scope, not price.</div>
       <div id="hg-out" style="margin-top:12px"></div>`,
       `<button class="btn" onclick="closeModal()">Close</button><button class="btn btn-primary" id="hg-go" onclick="App.runHaggle('${pid}')">${ico('bolt')} Get replies</button>`,true);
   },
@@ -580,7 +580,7 @@ const App={
       const usr=`Project: ${p.title} (${p.type}). Quoted fee: ${fmt(p.creativeFee)}.\nClient message:\n"""\n${req.trim()}\n"""`;
       const reply=await aiChat('followup',[{role:'system',content:sys},{role:'user',content:usr}],{temperature:0.5,max_tokens:700});
       const j=aiParseJSON(reply);
-      if(!j||!j.replies){out.innerHTML='<div class="callout amber">Could not parse the AI response. Try again.</div>';return;}
+      if(!j||!j.replies){out.innerHTML='<div class="callout amber">Could not parse the response. Try again.</div>';return;}
       out.innerHTML=`<div class="callout accent" style="margin-bottom:10px"><b>Strategy</b><br><span style="font-size:13px">${esc(j.strategy||'')}</span></div>`+
         j.replies.map((r,i)=>`<div class="field"><label>${esc(r.label||('Option '+(i+1)))}</label><textarea class="input" style="min-height:78px;font-size:13px">${esc(r.text||'')}</textarea></div>`).join('');
     }catch(e){App._aiErr('hg-out',e);}
@@ -589,7 +589,7 @@ const App={
 
   /* ===== AI #17 — closeout assistant ===== */
   async aiCloseout(pid){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const p=projectById(pid),facts=[];
     const ot=computeOT(p.overtime);if(ot&&ot.otFee>0&&!p.overtime.billed)facts.push(`Unbilled shoot overtime: ${fmt(ot.otFee)}`);
     if(p.turnaround&&p.turnaround.tier!=='standard'&&!p.turnaround.billed)facts.push(`Unbilled rush surcharge: ${fmt(turnaroundFee(p))}`);
@@ -601,7 +601,7 @@ const App={
     const due=payoutsDue(p);if(due.length)facts.push(`Crew payouts owed: ${due.map(c=>c.name).join(', ')}`);
     const rsr=retainerStats(p);if(rsr&&rsr.over>0)facts.push(`Retainer overage: ${fmt(rsr.overFee)}`);
     projectInvoices(p.id).forEach(i=>{if(invoiceStatus(i)==='overdue')facts.push(`Overdue invoice ${i.number}: ${fmt(invoiceTotal(i).total)}`);});
-    openModal('AI closeout check',`<div id="cl-out" class="hint">${ico('clock')} Reviewing what's still billable…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    openModal('Closeout check',`<div id="cl-out" class="hint">${ico('clock')} Reviewing what's still billable…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
     try{
       const sys='You are a billing assistant for a Filipino creative freelancer about to close a project. Given the list of unbilled/outstanding items, write a short checklist of what to bill or collect BEFORE marking the project delivered, ordered by amount. If nothing is outstanding, say clearly they are clear to close. End with a one-line warm Taglish message they could send the client if a balance remains. Plain text.';
       const usr=`Project: ${p.title} (${p.type}). Status: ${p.status}.\nOutstanding items:\n${facts.length?facts.map(f=>'- '+f).join('\n'):'(none found)'}`;
@@ -612,10 +612,10 @@ const App={
 
   /* ===== AI #20 — reschedule / typhoon message ===== */
   async aiReschedule(pid){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const p=projectById(pid),c=clientById(p.clientId),rs=rescheduleStats(p);
     const list=p.reschedules||[],last=list[list.length-1];
-    openModal('AI reschedule message',`<div id="rs-out" class="hint">${ico('clock')} Drafting…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    openModal('Reschedule message',`<div id="rs-out" class="hint">${ico('clock')} Drafting…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
     try{
       const sys='You are a Filipino creative freelancer. Write a warm, empathetic but clear Taglish message to a client about rescheduling a shoot (often due to typhoon/weather). Acknowledge the situation kindly, confirm the new date if given, and gently explain whether this move is free or incurs a re-block fee to re-hold the slot. Respect hiya. Output ONLY the message text.';
       const usr=`Client: ${c?c.name:'(client)'}.\nProject: ${p.title}.\nReason: ${last?reasonLabel(last.reason):'weather'}.\nNew date: ${last&&last.to?fmtDate(last.to):'to be confirmed'}.\nFree moves: ${rs.used} used of ${rs.free} free.\nRe-block fee: ${fmt(rs.reblockFee)}.\nThis move is ${rs.feeDue>0?'chargeable ('+fmt(rs.reblockFee)+' re-block fee)':'free'}.\nSign off: ${state.settings.businessName}.`;
@@ -626,7 +626,7 @@ const App={
 
   /* ===== AI #22 — "describe your studio" onboarding ===== */
   aiOnboard(){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     openModal('Describe your studio',`
       <div class="field"><label>Tell me about your business in a sentence or two</label><textarea class="input" id="ob-text" style="min-height:100px" placeholder="e.g. We're a Cebu-based wedding & events video studio, mostly couples and debuts. We usually need 50% reservation and deliver in 2–3 weeks."></textarea></div>
       <div id="ob-out" style="margin-top:12px"></div>`,
@@ -640,7 +640,7 @@ const App={
       const sys='You configure a billing app for a Filipino creative freelancer from a short business description. Return ONLY JSON: {"businessName":string,"paymentTerms":number (net days, e.g. 15),"defaultReservationPct":number (e.g. 50),"includedRevisions":number,"summary":string (one sentence describing the suggested setup)}. Infer sensible PH defaults when unstated.';
       const reply=await aiChat('followup',[{role:'system',content:sys},{role:'user',content:txt.trim()}],{temperature:0.3,max_tokens:400});
       const j=aiParseJSON(reply);
-      if(!j){out.innerHTML='<div class="callout amber">Could not parse the AI response. Try again.</div>';return;}
+      if(!j){out.innerHTML='<div class="callout amber">Could not parse the response. Try again.</div>';return;}
       out.innerHTML=`<div class="callout accent" style="margin-bottom:10px"><b>Suggested setup</b><br><span style="font-size:13px">${esc(j.summary||'')}</span></div>
         <div class="li"><div class="desc">Business name</div><div class="amt">${esc(j.businessName||state.settings.businessName)}</div></div>
         <div class="li"><div class="desc">Payment terms</div><div class="amt">net ${Number(j.paymentTerms)||state.settings.paymentTerms} days</div></div>
@@ -654,9 +654,9 @@ const App={
 
   /* ===== AI #23 — review request + testimonial co-writer ===== */
   async aiReviewDraft(pid){
-    if(!aiReady()){toast('Turn on AI in Settings → AI features first');return;}
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
     const p=projectById(pid),c=clientById(p.clientId),co=p.closeout||(p.closeout={});
-    openModal('AI review &amp; testimonial',`<div id="rv-out" class="hint">${ico('clock')} Writing…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    openModal('Review & testimonial',`<div id="rv-out" class="hint">${ico('clock')} Writing…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
     try{
       const sys='You are a Filipino creative freelancer asking a happy client for a review at the goodwill peak (delivered & paid). Return ONLY JSON: {"ask":string (a warm Taglish message asking for a Facebook/Google review and sharing a referral code),"testimonial":string (a short first-person testimonial draft the client can edit and post, sounding like a real PH client)}.';
       const usr=`Client: ${c?c.name:'(client)'}.\nProject: ${p.title} (${p.type}).\nStudio: ${state.settings.businessName}.\nReferral code: ${co.referralCode||'(none)'}.\nFacebook: facebook.com/${(state.settings.fbPage||state.settings.businessName.replace(/\s+/g,''))}`;
@@ -672,11 +672,11 @@ const App={
   /* settings / data */
   saveSettings(){const s=state.settings;s.businessName=$('#set-name').value;s.email=$('#set-email').value;s.address=$('#set-addr').value;s.fbPage=$('#set-fbpage').value;s.currency=$('#set-cur').value||'₱';s.currencyCode=$('#set-code').value||'PHP';s.paymentTerms=Number($('#set-terms').value)||15;toast('Settings saved',true);commit();},
   savePayments(){const p=state.settings.pay;p.gcashName=$('#pay-gname').value;p.gcashNumber=$('#pay-gnum').value;p.mayaNumber=$('#pay-maya').value;p.bankName=$('#pay-bank').value;p.bankAccount=$('#pay-acct').value;state.settings.payLink=$('#pay-link').value;toast('Payment details saved',true);commit();},
-  saveAI(){const a=state.settings.ai||(state.settings.ai=aiDefaults());a.enabled=$('#ai-enabled').checked;a.models=a.models||{};a.models.vision=$('#ai-m-vision').value.trim();a.models.followup=$('#ai-m-followup').value.trim();a.models.scope=$('#ai-m-scope').value.trim();toast('AI settings saved',true);commit();},
+  saveAI(){const a=state.settings.ai||(state.settings.ai=aiDefaults());a.enabled=$('#ai-enabled').checked;if(!a.models||!a.models.followup)a.models=aiDefaults().models;toast('Settings saved',true);commit();},
   async testAI(){const btn=$('#ai-test'),note=$('#ai-test-note');if(btn){btn.disabled=true;btn.textContent='Testing…';}
     try{const r=await fetch(AI_BASE+'/health');if(!r.ok)throw new Error('status '+r.status);
-      if(note)note.innerHTML='<span style="color:var(--accent-soft-fg)">'+ico('check')+' Connected and the key is loaded. Save, then try a screenshot or AI draft.</span>';
-    }catch(e){if(note)note.innerHTML='<span style="color:var(--red)">'+ico('alertT')+' Could not reach the AI service. Make sure the site is deployed on Cloudflare with the NVIDIA_API_KEY environment variable set. ('+esc(String(e.message||e))+')</span>';}
+      if(note)note.innerHTML='<span style="color:var(--accent-soft-fg)">'+ico('check')+' Connected and ready. Save, then try a screenshot or smart draft.</span>';
+    }catch(e){if(note)note.innerHTML='<span style="color:var(--red)">'+ico('alertT')+' Could not reach the smart service. Make sure the site is deployed on Cloudflare with the NVIDIA_API_KEY environment variable set. ('+esc(String(e.message||e))+')</span>';}
     finally{if(btn){btn.disabled=false;btn.textContent='Test connection';}}},
   exportData(){try{state.settings.lastBackup=iso(todayD());save();
     const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});

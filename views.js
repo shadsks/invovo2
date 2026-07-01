@@ -71,8 +71,8 @@ function viewDashboard(){
     </div>`).join(''):`<div class="empty">${ico('check')}<h4>You're all caught up</h4><p>No overdue invoices, expiring holds, overages, or payouts right now.</p></div>`;
   return `
   <div class="page-head">
-    <div><h1>Action Center</h1><p class="sub">Money you're owed, surfaced the moment it's billable: expiring date holds, kill fees, overages, change orders, retainer overruns, crew payouts, and overdue invoices with teeth.</p></div>
-    <div style="display:flex;gap:8px"><button class="btn" onclick="App.composeAsk()">${ico('chat')} Compose ask</button>${aiReady()?`<button class="btn" onclick="App.aiProposal()">${ico('bolt')} AI quote</button>`:''}<button class="btn btn-primary" onclick="App.newProject()">${ico('plus')} Project</button></div>
+    <div><h1>Action Center</h1><p class="sub">Money you're owed, surfaced the moment it's billable.</p></div>
+    <div style="display:flex;gap:8px"><button class="btn" onclick="App.composeAsk()">${ico('chat')} Compose ask</button>${aiReady()?`<button class="btn" onclick="App.aiProposal()">${ico('bolt')} Smart quote</button>`:''}<button class="btn btn-primary" onclick="App.newProject()">${ico('plus')} Project</button></div>
   </div>
   ${kpis}
   <div class="card"><div class="card-head"><h3>${ico('bolt')} Needs your attention</h3><span class="pill pill-neutral">${alerts.length} open</span></div>${list}</div>`;
@@ -93,7 +93,7 @@ function viewProjects(){
     </tr>`;
   }).join('');
   return `
-  <div class="page-head"><div><h1>Projects</h1><p class="sub">Each project holds its fee, holds, revisions, change orders, pass-throughs, crew splits, deliverable gate, and milestones.</p></div><button class="btn btn-primary" onclick="App.newProject()">${ico('plus')} New project</button></div>
+  <div class="page-head"><div><h1>Projects</h1><p class="sub">Fee, scope, revisions, and payouts held together for every project.</p></div><button class="btn btn-primary" onclick="App.newProject()">${ico('plus')} New project</button></div>
   <div class="card stagger"><table class="tbl">
     <thead><tr><th>Project</th><th>Type</th><th>Value</th><th>Open</th><th>Status</th></tr></thead>
     <tbody>${rows||`<tr><td colspan="5"><div class="empty">${ico('folder')}<h4>No projects yet</h4></div></td></tr>`}</tbody>
@@ -112,7 +112,7 @@ function viewProject(id){
     <div class="tag-row" style="margin-top:10px">${typePill(p.type)} ${statusPill(p.status)} <span class="pill ${risk.cls}">${ico('gauge')} ${risk.label}</span>${er?` <span class="pill pill-neutral">${fmt(er.hourly)}/hr effective</span>`:''}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" onclick="App.editProject('${p.id}')">${ico('edit')} Edit</button>
-      ${aiReady()?`<button class="btn" onclick="App.aiCloseout('${p.id}')">${ico('bolt')} AI closeout</button>`:''}
+      ${aiReady()?`<button class="btn" onclick="App.aiCloseout('${p.id}')">${ico('bolt')} Smart closeout</button>`:''}
       ${p.status!=='cancelled'?`<button class="btn btn-danger" onclick="App.cancelBooking('${p.id}')">${ico('alertT')} Client cancelled</button>`:''}
       <button class="btn btn-primary" onclick="App.buildInvoice('${p.id}')">${ico('doc')} Build invoice</button>
     </div>
@@ -202,7 +202,7 @@ function cardChangeOrders(p){
         <button class="btn btn-sm btn-block" onclick="App.addChangeOrder('${p.id}')">${ico('plus')} Add change order</button>
         ${pend.length?`<button class="btn btn-sm btn-primary btn-block" onclick="App.billChangeOrders('${p.id}')">${ico('money')} Bill ${pend.length}</button>`:''}
       </div>
-      ${aiReady()?`<button class="btn btn-sm btn-block" style="margin-top:8px" onclick="App.checkScope('${p.id}')">${ico('bolt')} Check a request (AI scope check)</button><button class="btn btn-sm btn-block" style="margin-top:8px" onclick="App.aiHaggle('${p.id}')">${ico('bolt')} Handle a discount request (AI)</button>`:''}
+      ${aiReady()?`<button class="btn btn-sm btn-block" style="margin-top:8px" onclick="App.checkScope('${p.id}')">${ico('bolt')} Check a request</button><button class="btn btn-sm btn-block" style="margin-top:8px" onclick="App.aiHaggle('${p.id}')">${ico('bolt')} Handle a discount request</button>`:''}
     </div>
   </div>`;
 }
@@ -262,7 +262,7 @@ function cardPassThrough(p){
     <div class="card-pad" style="padding-top:6px">
       ${rows||`<div class="empty" style="padding:20px">${ico('receipt')}<p>Tag rentals, studio, crew, catering. Bill at cost or with a per-line markup.</p></div>`}
       <button class="btn btn-block btn-sm" style="margin-top:12px" onclick="App.addPT('${p.id}')">${ico('plus')} Add pass-through cost</button>
-      ${aiReady()?`<button class="btn btn-block btn-sm" style="margin-top:8px" onclick="App.scanReceipt('${p.id}')">${ico('upload')} Scan receipt (AI)</button>`:''}
+      ${aiReady()?`<button class="btn btn-block btn-sm" style="margin-top:8px" onclick="App.scanReceipt('${p.id}')">${ico('upload')} Scan receipt</button>`:''}
     </div>
   </div>`;
 }
@@ -335,7 +335,7 @@ function cardReschedule(p){
         <button class="btn btn-sm btn-block" onclick="App.logReschedule('${p.id}')">${ico('calendar')} Log reschedule</button>
         ${rs.feeDue>0?`<button class="btn btn-sm btn-primary btn-block" onclick="App.billReschedule('${p.id}')">${ico('money')} Bill re-block</button>`:''}
       </div>
-      ${aiReady()?`<button class="btn btn-sm btn-block" style="margin-top:8px" onclick="App.aiReschedule('${p.id}')">${ico('bolt')} AI reschedule message</button>`:''}
+      ${aiReady()?`<button class="btn btn-sm btn-block" style="margin-top:8px" onclick="App.aiReschedule('${p.id}')">${ico('bolt')} Smart reschedule message</button>`:''}
       <div class="hint" style="margin-top:8px">${pol.freeCount||1} free move(s), ${fmt(pol.reblockFee||0)} after. <a href="#" onclick="App.editReschedulePolicy('${p.id}');return false" style="color:var(--accent-soft-fg);font-weight:500">Edit policy</a></div>
     </div>
   </div>`;
@@ -436,7 +436,7 @@ function cardCloseout(p){
       <p class="muted" style="font-size:13px;margin-bottom:8px">Delivered and fully paid. Capture the goodwill while it peaks.</p>
       <div class="li" style="grid-template-columns:1fr auto"><div class="desc"><div style="font-weight:600">Referral code</div><div class="d2">Hand this over for a discount on their next booking</div></div><span class="amt">${esc(co.referralCode||'')}</span></div>
       <button class="btn btn-block btn-primary btn-sm" style="margin-top:12px" onclick="App.requestReview('${p.id}')">${ico('star')} ${done?'Resend review request':'Send review and referral'}</button>
-      ${aiReady()?`<button class="btn btn-block btn-sm" style="margin-top:8px" onclick="App.aiReviewDraft('${p.id}')">${ico('bolt')} AI review &amp; testimonial</button>`:''}
+      ${aiReady()?`<button class="btn btn-block btn-sm" style="margin-top:8px" onclick="App.aiReviewDraft('${p.id}')">${ico('bolt')} Smart review &amp; testimonial</button>`:''}
     </div>
   </div>`;
 }

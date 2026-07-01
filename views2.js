@@ -88,7 +88,7 @@ function renderLeverage(inv){
   }).join('');
   return `<div class="card" style="margin-bottom:18px;border-color:var(--red)">
     <div class="card-head" style="background:var(--red-soft);border-radius:var(--r) var(--r) 0 0;border-color:var(--red-soft)"><h3 style="color:var(--red-soft-fg)">${ico('alertT')} Late-payment leverage, ${d} days overdue</h3><span class="pill pill-red">${fmt(invoiceTotal(inv).total)} owed</span></div>
-    <div class="card-pad">${recv?`<div class="callout blue" style="margin-bottom:12px">${ico('eye')} ${recv}</div>`:''}<div class="stepper">${steps}</div>${aiReady()?`<button class="btn btn-sm btn-block" style="margin-top:10px" onclick="App.aiReminderLadder('${inv.id}')">${ico('bolt')} AI: draft all 4 reminders</button>`:''}<p class="hint" style="margin-top:8px">Reminders are table stakes. These steps tie payment to file access.</p></div></div>`;
+    <div class="card-pad">${recv?`<div class="callout blue" style="margin-bottom:12px">${ico('eye')} ${recv}</div>`:''}<div class="stepper">${steps}</div>${aiReady()?`<button class="btn btn-sm btn-block" style="margin-top:10px" onclick="App.aiReminderLadder('${inv.id}')">${ico('bolt')} Draft all 4 reminders</button>`:''}<p class="hint" style="margin-top:8px">Reminders are table stakes. These steps tie payment to file access.</p></div></div>`;
 }
 
 /* ---- GCash / Maya QR + proof-of-payment reconciler ---- */
@@ -142,7 +142,7 @@ function viewInsights(){
       <div style="text-align:right"><span class="pill ${r.cls}">${r.label}</span><div class="muted" style="font-size:12px;margin-top:5px;max-width:200px">${esc(r.advice)}</div></div>
     </div>`).join('');
   return `
-  <div class="page-head"><div><h1>Insights</h1><p class="sub">What each job actually pays you, who pays slow, and what's landing in the bank over the next quarter.</p></div></div>
+  <div class="page-head"><div><h1>Insights</h1><p class="sub">What each job pays, who pays slow, and what's landing next quarter.</p></div></div>
   <div class="grid cols-2 stagger">
     <div class="card"><div class="card-head"><h3>${ico('trend')} Cash-flow forecast</h3><div style="display:flex;gap:8px;align-items:center">${aiReady()?`<button class="btn btn-ghost btn-sm" onclick="App.aiForecast()">${ico('bolt')} Explain</button>`:''}<span class="pill pill-neutral">next 3 months</span></div></div>
       <div class="card-pad"><div class="fc">${fcHtml}</div><p class="hint" style="margin-top:12px">Projected from unpaid invoices due, active retainers, and tentative deposit holds. Amounts in ${state.settings.currencyCode}.</p></div></div>
@@ -150,7 +150,7 @@ function viewInsights(){
       <div class="card-pad" style="padding-top:6px">${profRows||`<div class="empty" style="padding:20px"><p>Log hours on a project to see its real hourly rate.</p></div>`}
       ${typeRows?`<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:6px"><div class="hint" style="margin:6px 0 2px">Average by type</div>${typeRows}</div>`:''}</div></div>
   </div>
-  <div class="card stagger" style="margin-top:16px"><div class="card-head"><h3>${ico('gauge')} Client payment-risk</h3>${aiReady()?`<button class="btn btn-ghost btn-sm" onclick="App.aiRiskBriefing()">${ico('bolt')} AI briefing</button>`:''}</div>
+  <div class="card stagger" style="margin-top:16px"><div class="card-head"><h3>${ico('gauge')} Client payment-risk</h3>${aiReady()?`<button class="btn btn-ghost btn-sm" onclick="App.aiRiskBriefing()">${ico('bolt')} Smart briefing</button>`:''}</div>
     <div class="card-pad" style="padding-top:6px">${clientRows}</div></div>
   ${(()=>{const conv=referralConversions();if(!conv.length)return '';
     const rows=conv.map(x=>`<div class="li" style="grid-template-columns:1fr auto auto;gap:12px">
@@ -191,7 +191,7 @@ function viewSettings(){
       <div class="field-row"><div class="field"><label>Currency symbol</label><input class="input" id="set-cur" value="${esc(s.currency)}"></div>
       <div class="field"><label>Currency code</label><input class="input" id="set-code" value="${esc(s.currencyCode)}"></div></div>
       <div class="field"><label>Payment terms (days)</label><input class="input" type="number" id="set-terms" value="${s.paymentTerms}"></div>
-      <button class="btn btn-primary" onclick="App.saveSettings()">${ico('check')} Save profile</button>${aiReady()?`<button class="btn" style="margin-left:8px" onclick="App.aiOnboard()">${ico('bolt')} Describe your studio (AI)</button>`:''}
+      <button class="btn btn-primary" onclick="App.saveSettings()">${ico('check')} Save profile</button>${aiReady()?`<button class="btn" style="margin-left:8px" onclick="App.aiOnboard()">${ico('bolt')} Describe your studio</button>`:''}
     </div></div>
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="card"><div class="card-head"><h3>${ico('qr')} Payment details</h3><span class="pill pill-blue">on every invoice</span></div><div class="card-pad">
@@ -212,14 +212,9 @@ function viewSettings(){
         <div class="field-row"><button class="btn btn-primary btn-block" onclick="App.exportData()">${ico('download')} Download backup</button>
         <label class="btn btn-block" style="cursor:pointer">${ico('upload')} Restore from file<input type="file" accept="application/json,.json" onchange="App.importData(event)" style="display:none"></label></div>
       </div></div>
-      <div class="card"><div class="card-head"><h3>${ico('bolt')} AI features (NVIDIA NIM)</h3>${(s.ai&&s.ai.enabled)?'<span class="pill pill-accent">on</span>':'<span class="pill pill-neutral">off</span>'}</div><div class="card-pad">
-        <div class="callout blue" style="margin-bottom:12px">${ico('lock')} Your NVIDIA API key is never in this app or your browser. It lives only in a Cloudflare environment variable and is added by the site's serverless function before each call to NVIDIA.</div>
-        <label class="check" style="margin-bottom:10px"><input type="checkbox" id="ai-enabled" ${(s.ai&&s.ai.enabled)?'checked':''}><span>Enable AI features — screenshot &amp; receipt readers, quotes, drafts, reminder ladder, scope &amp; discount coaching, risk &amp; cash-flow briefings, closeout, reschedule &amp; review writers</span></label>
-        <div class="field"><label>Vision model — payment-screenshot reader</label><input class="input" id="ai-m-vision" value="${esc((s.ai&&s.ai.models&&s.ai.models.vision)||'')}" placeholder="nvidia/nemotron-nano-12b-v2-vl"></div>
-        <div class="field"><label>Follow-up model — AI message drafts</label><input class="input" id="ai-m-followup" value="${esc((s.ai&&s.ai.models&&s.ai.models.followup)||'')}" placeholder="meta/llama-3.3-70b-instruct"></div>
-        <div class="field"><label>Scope model — request checker</label><input class="input" id="ai-m-scope" value="${esc((s.ai&&s.ai.models&&s.ai.models.scope)||'')}" placeholder="meta/llama-3.3-70b-instruct"></div>
-        <div class="hint" style="margin-bottom:10px">Copy the exact model id from build.nvidia.com (format <code>vendor/model</code>). If a call returns 404, the slug is wrong — fix it here.</div>
-        <div class="field-row"><button class="btn btn-primary btn-block" onclick="App.saveAI()">${ico('check')} Save AI settings</button><button class="btn btn-block" id="ai-test" onclick="App.testAI()">Test connection</button></div>
+      <div class="card"><div class="card-head"><h3>${ico('bolt')} Smart features</h3>${(s.ai&&s.ai.enabled)?'<span class="pill pill-accent">on</span>':'<span class="pill pill-neutral">off</span>'}</div><div class="card-pad">
+        <label class="check" style="margin-bottom:12px"><input type="checkbox" id="ai-enabled" ${(s.ai&&s.ai.enabled)?'checked':''}><span>Enable smart features — screenshot &amp; receipt readers, quotes, drafts, reminder ladder, scope &amp; discount coaching, risk &amp; cash-flow briefings, closeout, reschedule &amp; review writers</span></label>
+        <div class="field-row"><button class="btn btn-primary btn-block" onclick="App.saveAI()">${ico('check')} Save settings</button><button class="btn btn-block" id="ai-test" onclick="App.testAI()">Test connection</button></div>
         <div id="ai-test-note" class="hint" style="margin-top:8px"></div>
       </div></div>
       <div class="card"><div class="card-head"><h3>${ico('trash')} Data</h3></div><div class="card-pad">
