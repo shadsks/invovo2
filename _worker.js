@@ -189,7 +189,8 @@ export default {
 
     if (pathname === '/api/health') {
       if (request.method === 'OPTIONS') return preflight();
-      return json({ ok: true, key: !!env.NVIDIA_API_KEY, licensing: !!(env.LICENSE_SECRET && env.DB) });
+      // Granular flags so the login screen (and you) can see exactly which setup step is missing.
+      return json({ ok: true, key: !!env.NVIDIA_API_KEY, licensing: !!(env.LICENSE_SECRET && env.DB), secret: !!env.LICENSE_SECRET, db: !!env.DB });
     }
 
     if (pathname === '/api/auth/activate') return handleAuth(request, env, 'activate');

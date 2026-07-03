@@ -260,7 +260,7 @@ function seed(){
      lineItems:[{kind:'creative',label:'Brand stills, Q1',detail:'Half day',qty:1,rate:48000,amount:48000}],notes:''},
   ];
   return {schema:5,settings:{businessName:'Habi Studios',email:'hello@habistudios.ph',address:'Unit 5 Brixton Lane, Kapitolyo, Pasig City',currency:'₱',currencyCode:'PHP',invoiceSeq:1022,paymentTerms:15,
-    fbPage:'habistudios',payLink:'',lastBackup:'',ai:aiDefaults(),tax:{enabled:true,regime:'8pct'},
+    fbPage:'habistudios',payLink:'',lastBackup:'',ai:aiDefaults(),tax:{enabled:true,regime:'8pct'},onboarded:false,
     pay:{gcashName:'Habi Studios',gcashNumber:'0917 555 0142',mayaNumber:'0998 555 0142',bankName:'BPI',bankAccount:'1234 5678 90',qr:''}},clients,projects,invoices};
 }
 function load(){try{const r=localStorage.getItem(LS_KEY);if(r)return migrate(JSON.parse(r));}catch(e){}return null;}
@@ -274,6 +274,7 @@ function migrate(st){
   delete s.taxRate;delete s.taxLabel;/* tax/VAT removed */
   if(!s.ai)s.ai=aiDefaults();else{const d=aiDefaults();delete s.ai.proxyUrl;if(typeof s.ai.enabled!=='boolean')s.ai.enabled=false;if(!s.ai.models)s.ai.models={};['vision','followup','scope'].forEach(k=>{if(s.ai.models[k]==null)s.ai.models[k]=d.models[k];if(AI_SLUG_FIXES[s.ai.models[k]])s.ai.models[k]=AI_SLUG_FIXES[s.ai.models[k]];});if(!s.ai._speed){['followup','scope'].forEach(k=>{if(s.ai.models[k]==='meta/llama-3.3-70b-instruct')s.ai.models[k]=AI_FAST;});s.ai._speed=1;}}
   if(!s.tax)s.tax={enabled:false,regime:'8pct'};   /* off by default for existing saves; demo seed ships it on */
+  if(s.onboarded==null)s.onboarded=true;           /* existing saves are already-set-up users, skip the welcome wizard */
   (st.clients||[]).forEach(c=>{if(c.phone==null)c.phone='';if(c.referredBy==null)c.referredBy='';});
   (st.projects||[]).forEach(p=>{
     if(!p.reschedulePolicy)p.reschedulePolicy={freeCount:1,reblockFee:0};

@@ -52,6 +52,21 @@ yet, or the redeploy hasn't happened.
 Local development runs in **preview mode** (on `file://` or `localhost`) — the app opens without the gate so
 you can build. The gate is only active on a real deployed origin.
 
+### Troubleshooting: "Licensing is not configured on this server (LICENSE_SECRET missing)"
+
+The deployed Worker can't see the secret. Two causes, in order of likelihood:
+
+1. **You added the secret but didn't redeploy.** Cloudflare settings only apply to deployments made
+   *after* they're saved. Fix: project → **Deployments** → ⋯ on the latest → **Retry deployment**
+   (or drag-and-drop the folder again).
+2. **The secret isn't on the Production environment** (or has a typo'd name). Fix: project →
+   **Settings → Variables and Secrets** → confirm a secret named exactly `LICENSE_SECRET` exists for
+   **Production**, value pasted from `keys/LICENSE_SECRET.txt`. Then redeploy (step 1).
+
+Diagnose in 5 seconds: open `https://<your-app>/api/health` — it reports `"secret"` and `"db"`
+individually, so you can see exactly which piece is missing. The activation screen also checks this
+automatically and shows the fix on-screen. The same redeploy rule applies to the `DB` binding.
+
 ### Optional: CLI alternative
 
 Everything above can also be driven from `wrangler`, if you prefer:

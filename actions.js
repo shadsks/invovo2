@@ -100,7 +100,7 @@ const App={
     const body=`
       <div class="field"><label>Situation</label><select class="input" id="c-sit" onchange="composerRegen()">${ASK_SITUATIONS.map(s=>`<option value="${s.v}" ${s.v===COMPOSER.sit?'selected':''}>${s.l}</option>`).join('')}</select></div>
       <div class="field"><label>Tone</label><div class="seg" id="c-seg">${seg('warm')}${seg('firm')}${seg('final')}</div></div>
-      ${aiReady()?`<div class="field"><label>Their recent messages (optional — for tone match)</label><textarea class="input" id="c-thread" style="min-height:56px" placeholder="Paste the client's last few messages so the draft matches their Taglish / formality."></textarea></div>`:''}
+      ${aiReady()?`<div class="field"><label>Their recent messages (optional, for tone match)</label><textarea class="input" id="c-thread" style="min-height:56px" placeholder="Paste the client's last few messages so the draft matches their Taglish / formality."></textarea></div>`:''}
       <div class="field"><label>Message</label><textarea class="input" id="c-out" style="min-height:170px;line-height:1.55"></textarea></div>
       <div class="hint">${state.settings.payLink?'Your pay link is appended automatically.':'Add a Pay Link in Settings and it rides on every ask.'} Sending copies the text first, then opens the app.</div>`;
     const send=SEND_CHANNELS.map(ch=>`<button class="btn btn-sm" onclick="App._sendVia('${ch.v}')">${ico(ch.ico)} ${ch.l}</button>`).join('');
@@ -112,7 +112,7 @@ const App={
   _copyAsk(){const out=document.getElementById('c-out');if(out){navigator.clipboard&&navigator.clipboard.writeText(out.value);toast('Message copied to clipboard',true);}},
   _sendVia(channel){const out=document.getElementById('c-out');const text=out?out.value:'';
     navigator.clipboard&&navigator.clipboard.writeText(text);
-    const url=sendLink(channel,text,{phone:COMPOSER.ctx.phone,email:COMPOSER.ctx.email,subject:(COMPOSER.ctx.project||'Invoice')+' — '+state.settings.businessName});
+    const url=sendLink(channel,text,{phone:COMPOSER.ctx.phone,email:COMPOSER.ctx.email,subject:(COMPOSER.ctx.project||'Invoice')+' - '+state.settings.businessName});
     try{window.open(url,'_blank');}catch(e){}
     toast(channel==='messenger'?'Copied. Paste into Messenger chat.':'Message copied, opening '+channel,true);},
 
@@ -688,8 +688,75 @@ const App={
     }catch(e){toast('That file is not a valid Invoice Studio backup');}};
     r.readAsText(f);ev.target.value='';},
   uploadQR(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{state.settings.pay.qr=r.result;toast('QR uploaded',true);commit();};r.readAsDataURL(f);},
-  resetDemo(){openConfirm('Reset to demo data?','This replaces everything with the seeded demo studio.',()=>{state=seed();toast('Demo data restored',true);go('#/');commit();});},
-  wipe(){openConfirm('Wipe all data?','This clears everything and cannot be undone.',()=>{const s=seed().settings;state={settings:s,clients:[],projects:[],invoices:[]};state.settings.invoiceSeq=1000;toast('All data wiped');go('#/');commit();},true);},
+  resetDemo(){openConfirm('Reset to demo data?','This replaces everything with the seeded demo studio.',()=>{state=seed();state.settings.onboarded=true;toast('Demo data restored',true);go('#/');commit();});},
+  wipe(){openConfirm('Wipe all data?','This clears everything and cannot be undone.',()=>{const s=seed().settings;s.onboarded=true;state={settings:s,clients:[],projects:[],invoices:[]};state.settings.invoiceSeq=1000;toast('All data wiped');go('#/');commit();},true);},
+  /* ---- first-run onboarding (welcome wizard) ---- */
+  maybeOnboard(){if(!state||!state.settings||state.settings.onboarded)return;App._ob(1);},
+  _ob(step){
+    const s=state.settings;
+    const dots=[1,2,3].map(n=>`<i class="${step>=n?'on':''}"></i>`).join('');
+    let body='',foot='';
+    if(step===1){
+      body=`<h3>Your billing, finally in one calm place</h3>
+      <p>Two ways to start. Either way, everything stays on this device and you can reset from Settings anytime.</p>
+      <div class="ob-choice">
+        <button onclick="App.onboardChoose('demo')">${ico('eye')}<span><b>Explore the demo studio</b><span>Look around "Habi Studios", a sample studio with realistic projects, invoices, and money on the table.</span></span></button>
+        <button onclick="App.onboardChoose('fresh')">${ico('plus')}<span><b>Start fresh with my studio</b><span>Begin with a clean slate and your own business details.</span></span></button>
+      </div>`;
+      foot=`<span class="muted" style="font-size:12px">Step 1 of 3</span><span></span>`;
+    }else if(step===2){
+      body=`<h3>The details that go on your invoices</h3>
+      <p>All of this is editable later in Settings. GCash first, because that's what clients pay with.</p>
+      <div class="ob-fields">
+        <div class="field"><label>Business or studio name</label><input class="input" id="ob-name" value="${esc(s.businessName||'')}" placeholder="e.g. Habi Studios"></div>
+        <div class="field"><label>Email</label><input class="input" id="ob-email" value="${esc(s.email||'')}" placeholder="you@studio.ph"></div>
+        <div class="field-row">
+          <div class="field"><label>GCash name</label><input class="input" id="ob-gname" value="${esc((s.pay&&s.pay.gcashName)||'')}" placeholder="Account name"></div>
+          <div class="field"><label>GCash number</label><input class="input" id="ob-gnum" value="${esc((s.pay&&s.pay.gcashNumber)||'')}" placeholder="09xx xxx xxxx"></div>
+        </div>
+        <div class="hint">Maya, bank details, and your QR Ph image can be added in Settings → Payment details.</div>
+      </div>`;
+      foot=`<button class="btn" onclick="App._ob(1)">Back</button><button class="btn btn-primary" onclick="App.onboardSaveBiz()">${ico('check')} Continue</button>`;
+    }else{
+      body=`<h3>Three places to know</h3>
+      <ul class="ob-orient">
+        <li>${ico('bolt')}<span><b>Action Center</b> is home. Every peso you can bill or collect shows up there with a one-tap next step.</span></li>
+        <li>${ico('folder')}<span><b>Projects</b> hold your fee, scope, revisions, and payout splits, so overages get billed instead of absorbed.</span></li>
+        <li>${ico('trend')}<span><b>Insights</b> reads your money back to you: cash-flow ahead, slow payers, and the BIR set-aside guide.</span></li>
+      </ul>`;
+      foot=`<button class="btn" onclick="App._ob(2)">Back</button><button class="btn btn-primary" onclick="App.onboardFinish()">${ico('check')} Take me in</button>`;
+    }
+    $('#modal-root').innerHTML=`<div class="ob-scrim"><div class="ob" role="dialog" aria-modal="true" aria-label="Welcome to Invoice Studio">
+      <div class="ob-head">${ico('bolt')}<b>Welcome to Invoice Studio</b><span class="ob-dots">${dots}</span><button class="ob-skip" onclick="App.onboardSkip()">Skip</button></div>
+      <div class="ob-body">${body}</div>
+      <div class="ob-foot">${foot}</div>
+    </div></div>`;
+    setTimeout(()=>{const el=document.querySelector('.ob-body input');if(el&&el.focus)el.focus();},60);
+  },
+  onboardChoose(mode){
+    if(mode==='fresh'){
+      const st=seed().settings;
+      state={settings:{...st,businessName:'',email:'',fbPage:'',invoiceSeq:1000,onboarded:false,
+        pay:{...st.pay,gcashName:'',gcashNumber:'',mayaNumber:'',bankName:'',bankAccount:'',qr:''}},clients:[],projects:[],invoices:[]};
+      save();render();
+    }
+    App._ob(2);
+  },
+  onboardSaveBiz(){
+    const s=state.settings;
+    const v=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
+    if(v('ob-name'))s.businessName=v('ob-name');
+    if(v('ob-email'))s.email=v('ob-email');
+    if(!s.pay)s.pay={};
+    if(v('ob-gname'))s.pay.gcashName=v('ob-gname');
+    if(v('ob-gnum'))s.pay.gcashNumber=v('ob-gnum');
+    if(v('ob-name'))s.fbPage=v('ob-name').replace(/\s+/g,'').toLowerCase();
+    save();render();
+    App._ob(3);
+  },
+  onboardFinish(){state.settings.onboarded=true;save();$('#modal-root').innerHTML='';toast('You are set. Welcome to Invoice Studio',true);render();},
+  onboardSkip(){state.settings.onboarded=true;save();$('#modal-root').innerHTML='';},
+
   /* ---- BIR tax estimator ---- */
   saveTax(){const t=state.settings.tax||(state.settings.tax={enabled:false,regime:'8pct'});t.enabled=$('#tax-enabled').checked;t.regime=$('#tax-regime').value==='graduated'?'graduated':'8pct';toast('Tax settings saved',true);commit();},
   async aiTaxExplain(){
