@@ -260,7 +260,7 @@ function seed(){
      lineItems:[{kind:'creative',label:'Brand stills, Q1',detail:'Half day',qty:1,rate:48000,amount:48000}],notes:''},
   ];
   return {schema:5,settings:{businessName:'Habi Studios',email:'hello@habistudios.ph',address:'Unit 5 Brixton Lane, Kapitolyo, Pasig City',currency:'₱',currencyCode:'PHP',invoiceSeq:1022,paymentTerms:15,
-    fbPage:'habistudios',payLink:'',lastBackup:'',ai:aiDefaults(),
+    fbPage:'habistudios',payLink:'',lastBackup:'',ai:aiDefaults(),tax:{enabled:true,regime:'8pct'},
     pay:{gcashName:'Habi Studios',gcashNumber:'0917 555 0142',mayaNumber:'0998 555 0142',bankName:'BPI',bankAccount:'1234 5678 90',qr:''}},clients,projects,invoices};
 }
 function load(){try{const r=localStorage.getItem(LS_KEY);if(r)return migrate(JSON.parse(r));}catch(e){}return null;}
@@ -273,6 +273,7 @@ function migrate(st){
   if(s.lastBackup==null)s.lastBackup='';
   delete s.taxRate;delete s.taxLabel;/* tax/VAT removed */
   if(!s.ai)s.ai=aiDefaults();else{const d=aiDefaults();delete s.ai.proxyUrl;if(typeof s.ai.enabled!=='boolean')s.ai.enabled=false;if(!s.ai.models)s.ai.models={};['vision','followup','scope'].forEach(k=>{if(s.ai.models[k]==null)s.ai.models[k]=d.models[k];if(AI_SLUG_FIXES[s.ai.models[k]])s.ai.models[k]=AI_SLUG_FIXES[s.ai.models[k]];});if(!s.ai._speed){['followup','scope'].forEach(k=>{if(s.ai.models[k]==='meta/llama-3.3-70b-instruct')s.ai.models[k]=AI_FAST;});s.ai._speed=1;}}
+  if(!s.tax)s.tax={enabled:false,regime:'8pct'};   /* off by default for existing saves; demo seed ships it on */
   (st.clients||[]).forEach(c=>{if(c.phone==null)c.phone='';if(c.referredBy==null)c.referredBy='';});
   (st.projects||[]).forEach(p=>{
     if(!p.reschedulePolicy)p.reschedulePolicy={freeCount:1,reblockFee:0};
@@ -396,6 +397,42 @@ function forecast(){
   }
   return buckets;
 }
+/* ---- BIR tax estimates (PH freelancer) ----
+   Planning estimates only, computed from paid invoices this calendar year. Two setups freelancers
+   actually file under: the 8% flat option (on gross receipts over the 250k exemption, in lieu of
+   income + percentage tax, allowed while annual gross ≤ 3M) and graduated rates with the 40% OSD
+   plus 3% percentage tax. Graduated brackets per the TRAIN schedule in effect since 2023. */
+const TAX_BRACKETS=[
+  {min:8000000,base:2202500,rate:.35},
+  {min:2000000,base:402500,rate:.30},
+  {min:800000,base:102500,rate:.25},
+  {min:400000,base:22500,rate:.20},
+  {min:250000,base:0,rate:.15},
+  {min:0,base:0,rate:0},
+];
+function graduatedTax(taxable){taxable=Math.max(0,Number(taxable||0));const b=TAX_BRACKETS.find(x=>taxable>x.min);return b?Math.round(b.base+(taxable-b.min)*b.rate):0;}
+function taxEnabled(){return !!(state.settings.tax&&state.settings.tax.enabled);}
+function taxYTD(){const y=todayD().getFullYear();return state.invoices.filter(i=>i.status==='paid'&&i.paidDate&&parseD(i.paidDate).getFullYear()===y).reduce((s,i)=>s+invoiceTotal(i).total,0);}
+function taxEstimate(gross){
+  gross=Number(gross||0);
+  const overVat=gross>3000000;
+  const eight=overVat?null:Math.round(Math.max(0,gross-250000)*0.08);
+  const grad=graduatedTax(gross*0.6)+Math.round(gross*0.03);   /* 40% OSD, then income tax + 3% percentage tax */
+  const recommended=eight!=null&&eight<=grad?'8pct':'graduated';
+  const regime=(state.settings.tax&&state.settings.tax.regime)==='graduated'?'graduated':'8pct';
+  const chosen=(regime==='8pct'&&eight!=null)?eight:grad;
+  const pct=gross>0?Math.round(chosen/gross*1000)/10:0;
+  return {gross,eight,grad,recommended,regime,chosen,pct,overVat};
+}
+/* Filing calendar for a self-employed 1701Q/1701A filer. */
+const TAX_DEADLINES=[{m:4,d:15,label:'Annual ITR (1701A)'},{m:5,d:15,label:'Q1 1701Q'},{m:8,d:15,label:'Q2 1701Q'},{m:11,d:15,label:'Q3 1701Q'}];
+function nextTaxDeadline(){
+  const t=todayD(),list=[];
+  [t.getFullYear(),t.getFullYear()+1].forEach(y=>TAX_DEADLINES.forEach(x=>list.push({date:new Date(y,x.m-1,x.d),label:x.label})));
+  list.sort((a,b)=>a.date-b.date);
+  const nx=list.find(x=>x.date>=t);
+  return {label:nx.label,date:iso(nx.date),days:daysBetween(t,nx.date)};
+}
 /* ---- Collaborator payouts ---- */
 function projectPayouts(p){const fee=Number(p.creativeFee||0);return (p.collaborators||[]).map(c=>({...c,owed:c.cutType==='pct'?Math.round(fee*Number(c.cutValue)/100):Number(c.cutValue)}));}
 function payoutsDue(p){const anyPaid=projectInvoices(p.id).some(i=>i.status==='paid')||(installmentStats(p)&&installmentStats(p).paid>0);if(!anyPaid)return [];return projectPayouts(p).filter(c=>!c.paidOut);}
@@ -509,6 +546,15 @@ function buildAlerts(){
       detail:`${p.title}. "${m.label}" unlocked after the prior deliverable was approved.`,money:m.amount,
       actions:[{label:'Generate milestone invoice',fn:`App.invoiceMilestone('${p.id}','${m.id}')`,primary:true},{label:'View project',fn:`go('#/project/${p.id}')`}]});});
   });
+  if(taxEnabled()){
+    const dl=nextTaxDeadline();
+    if(dl.days<=21){
+      const est=taxEstimate(taxYTD());
+      alerts.push({sev:dl.days<=7?'amber':'blue',icon:'scale',title:`BIR ${dl.label} due ${relDays(dl.days)}`,
+        detail:`Filing deadline ${fmtDate(dl.date)}. Receipts this year: ${fmt(est.gross)}; estimated ${est.regime==='8pct'?'8% tax':'graduated tax'} so far: ${fmt(est.chosen)}. Set the money aside now, hindi sa deadline week.`,money:0,
+        actions:[{label:'Open tax estimate',fn:`go('#/insights')`,primary:true}]});
+    }
+  }
   const order={red:0,amber:1,blue:2,accent:3};
   alerts.sort((a,b)=>(order[a.sev]-order[b.sev])||(Number(b.money||0)-Number(a.money||0)));
   return alerts;

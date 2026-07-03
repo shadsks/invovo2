@@ -150,6 +150,7 @@ function viewInsights(){
       <div class="card-pad" style="padding-top:6px">${profRows||`<div class="empty" style="padding:20px"><p>Log hours on a project to see its real hourly rate.</p></div>`}
       ${typeRows?`<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:6px"><div class="hint" style="margin:6px 0 2px">Average by type</div>${typeRows}</div>`:''}</div></div>
   </div>
+  ${taxCard()}
   <div class="card stagger" style="margin-top:16px"><div class="card-head"><h3>${ico('gauge')} Client payment-risk</h3>${aiReady()?`<button class="btn btn-ghost btn-sm" onclick="App.aiRiskBriefing()">${ico('bolt')} Smart briefing</button>`:''}</div>
     <div class="card-pad" style="padding-top:6px">${clientRows}</div></div>
   ${(()=>{const conv=referralConversions();if(!conv.length)return '';
@@ -158,6 +159,30 @@ function viewInsights(){
       <span class="pill pill-blue">${x.bookings} booking${x.bookings>1?'s':''}</span><div class="amt" style="color:var(--accent-soft-fg)">${fmt(x.revenue)}</div></div>`).join('');
     return `<div class="card stagger" style="margin-top:16px"><div class="card-head"><h3>${ico('star')} Suki &amp; referral conversions</h3><span class="pill pill-neutral">${conv.length} active code(s)</span></div>
       <div class="card-pad" style="padding-top:6px">${rows}<p class="hint" style="margin-top:10px">Which referral codes actually turned into paid bookings. Tag a new client's "referral code used" to credit the suki who sent them.</p></div></div>`;})()}`;
+}
+
+/* BIR tax estimate card (Insights). Compares the two filing setups a freelancer can elect,
+   recommends the cheaper one at the current run-rate, and turns it into a set-aside habit. */
+function taxCard(){
+  if(!taxEnabled())return '';
+  const gross=taxYTD(),est=taxEstimate(gross),dl=nextTaxDeadline();
+  const regRow=(key,label,amt)=>{
+    const active=est.regime===key,rec=est.recommended===key;
+    return `<div class="li" style="grid-template-columns:1fr auto auto;gap:12px">
+      <div class="desc"><div style="font-weight:600">${label}</div><div class="d2">${key==='8pct'?'In lieu of income + percentage tax, needs annual gross ≤ ₱3M':'Income tax on 60% of gross (40% OSD) + 3% percentage tax'}</div></div>
+      <div>${active?'<span class="pill pill-blue">your setup</span>':''}${rec?' <span class="pill pill-accent">cheaper</span>':''}</div>
+      <div class="amt">${amt==null?'n/a':fmt(amt)}</div></div>`;
+  };
+  const setAside=gross>0?`<div class="callout blue" style="margin-top:12px">${ico('wallet')} Set aside about <b>${fmt(Math.round(est.chosen/Math.max(1,gross)*100))} of every ${fmt(100)}</b> you collect (${est.pct}% of receipts) and the ${dl.label} payment won't hurt.</div>`:'';
+  const vat=est.overVat?`<div class="callout amber" style="margin-top:12px">${ico('alertT')} Receipts passed ₱3M this year — that's VAT registration territory and the 8% option no longer applies. Talk to your accountant.</div>`:'';
+  return `<div class="card stagger" style="margin-top:16px"><div class="card-head"><h3>${ico('scale')} BIR tax estimate</h3><div style="display:flex;gap:8px;align-items:center">${aiReady()?`<button class="btn btn-ghost btn-sm" onclick="App.aiTaxExplain()">${ico('bolt')} Explain</button>`:''}<span class="pill ${dl.days<=21?'pill-amber':'pill-neutral'}">${dl.label} ${relDays(dl.days)}</span></div></div>
+    <div class="card-pad" style="padding-top:6px">
+      <div class="li" style="grid-template-columns:1fr auto;gap:12px"><div class="desc"><div style="font-weight:600">Gross receipts, ${todayD().getFullYear()}</div><div class="d2">Paid invoices this calendar year</div></div><div class="amt">${fmt(gross)}</div></div>
+      ${regRow('8pct','8% flat option',est.eight)}
+      ${regRow('graduated','Graduated + 40% OSD',est.grad)}
+      ${setAside}${vat}
+      <p class="hint" style="margin-top:10px">Planning estimates only, not tax advice — your COR, deductions, and prior 1701Q payments change the real number. Next deadline: ${dl.label}, ${fmtDate(dl.date)}. Change your setup in Settings.</p>
+    </div></div>`;
 }
 
 /* ============================== CLIENTS ============================== */
@@ -217,11 +242,41 @@ function viewSettings(){
         <div class="field-row"><button class="btn btn-primary btn-block" onclick="App.saveAI()">${ico('check')} Save settings</button><button class="btn btn-block" id="ai-test" onclick="App.testAI()">Test connection</button></div>
         <div id="ai-test-note" class="hint" style="margin-top:8px"></div>
       </div></div>
+      <div class="card"><div class="card-head"><h3>${ico('scale')} BIR tax estimator</h3>${taxEnabled()?'<span class="pill pill-accent">on</span>':'<span class="pill pill-neutral">off</span>'}</div><div class="card-pad">
+        <label class="check" style="margin-bottom:12px"><input type="checkbox" id="tax-enabled" ${taxEnabled()?'checked':''}><span>Show tax estimates — a set-aside guide from your paid invoices and 1701Q deadline reminders in the Action Center</span></label>
+        <div class="field"><label>Filing setup</label><select class="input" id="tax-regime">
+          <option value="8pct" ${(s.tax&&s.tax.regime)!=='graduated'?'selected':''}>8% flat on gross receipts (most freelancers)</option>
+          <option value="graduated" ${(s.tax&&s.tax.regime)==='graduated'?'selected':''}>Graduated rates + 40% OSD + 3% percentage tax</option>
+        </select></div>
+        <button class="btn btn-primary" onclick="App.saveTax()">${ico('check')} Save tax settings</button>
+        <div class="hint" style="margin-top:8px">Estimates for planning only — confirm with your accountant. The estimate lives in Insights.</div>
+      </div></div>
+      ${licenseCard()}
       <div class="card"><div class="card-head"><h3>${ico('trash')} Data</h3></div><div class="card-pad">
         <p class="muted" style="font-size:13px;margin-bottom:12px">Reset to the demo studio, or wipe everything. Export a backup first.</p>
         <div class="field-row"><button class="btn btn-block" onclick="App.resetDemo()">${ico('bolt')} Reset demo data</button><button class="btn btn-danger btn-block" onclick="App.wipe()">${ico('trash')} Wipe all data</button></div>
       </div></div>
     </div>
   </div>`;
+}
+/* Licensed device panel. In preview mode (localhost/file://) there is no session, so we show the
+   preview state; on a deployed origin it lists the paired devices and lets you free a slot. */
+function licenseCard(){
+  const preview=window.Auth&&Auth.PREVIEW;
+  const sess=window.Auth&&Auth.session&&Auth.session();
+  const devs=(window.Auth&&Auth.devices&&Auth.devices())||[];
+  const thisId=(window.Auth&&Auth.deviceId&&Auth.deviceId()||'').slice(0,8);
+  let body;
+  if(preview){
+    body=`<div class="callout blue" style="margin-bottom:0">${ico('unlock')} Preview mode — running locally without the license gate. On your deployed site, this panel shows your paired devices (max 2 per key).</div>`;
+  }else if(!sess){
+    body=`<p class="muted" style="font-size:13px;margin-bottom:12px">This device is not activated.</p><button class="btn btn-primary btn-block" onclick="Auth.showLogin()">${ico('lock')} Enter serial key</button>`;
+  }else{
+    const rows=devs.length?devs.map(d=>`<div class="dev-row"><div><b>${esc(d.label)}${d.id===thisId?' <span class="pill pill-accent" style="margin-left:4px">this device</span>':''}</b><span class="muted" style="font-size:11.5px">activated ${d.boundAt?fmtDate(iso(new Date(d.boundAt))):'—'}</span></div>${d.id===thisId?`<button class="btn btn-sm" onclick="App.signOut()">Sign out</button>`:`<button class="btn btn-sm btn-danger" onclick="App.removeDevice('${d.id}')">Remove</button>`}</div>`).join(''):`<p class="muted" style="font-size:13px">Loading devices…</p>`;
+    body=`<div class="dev-list">${rows}</div>
+      <div class="hint" style="margin-top:10px">Each key runs on up to 2 devices, shared by the web app and the installable app. Remove one to free a slot.</div>
+      <button class="btn btn-block" style="margin-top:12px" onclick="App.refreshDevices()">${ico('bolt')} Refresh</button>`;
+  }
+  return `<div class="card"><div class="card-head"><h3>${ico('lock')} License &amp; devices</h3>${preview?'<span class="pill pill-amber">preview</span>':(sess?`<span class="pill pill-accent">${devs.length||1}/2 devices</span>`:'<span class="pill pill-neutral">not activated</span>')}</div><div class="card-pad">${body}</div></div>`;
 }
 function notFound(w){return `<div class="empty" style="padding:80px">${ico('alertT')}<h4>${w} not found</h4><a class="btn" href="#/" style="margin-top:12px">${ico('arrowL')} Back to Action Center</a></div>`;}

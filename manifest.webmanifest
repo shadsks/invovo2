@@ -1,0 +1,17 @@
+{
+  "name": "Invoice Studio",
+  "short_name": "Invoice Studio",
+  "description": "Billing, follow-ups, and cash-flow for Filipino creative freelancers.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0c8a5f",
+  "background_color": "#FAFAF9",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

@@ -24,6 +24,7 @@ function shell(active,inner){
   const link=(name,label,badge)=>`<a class="nav-link ${active===name?'active':''}" href="#/${name==='dashboard'?'':name}">${ico(navIcon(name))}<span>${label}</span>${badge?`<span class="badge">${badge}</span>`:''}</a>`;
   const ml=(name,label)=>`<a class="${active===name?'active':''}" href="#/${name==='dashboard'?'':name}">${ico(navIcon(name))}<span>${label}</span></a>`;
   return `
+  <a class="skip-link" href="#content">Skip to content</a>
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">${ico('bolt')}</div><div><div class="brand-name">Invoice Studio</div><div class="brand-sub">Billing for creatives</div></div></div>
     <nav class="nav">
@@ -40,7 +41,7 @@ function shell(active,inner){
   <main class="main">
     <div class="topbar"><div class="topbar-l"><div class="topbar-mark">${ico('bolt')}</div><span class="brand-name">Invoice Studio</span></div>
       <div class="topbar-r"><button class="theme-btn" onclick="go('#/settings')" aria-label="Settings">${ico('gear')}</button><button class="theme-btn" onclick="App.toggleTheme()" aria-label="Toggle theme">${ico(dark?'sun':'moon')}</button></div></div>
-    <div class="content">${inner}</div>
+    <div class="content" id="content" tabindex="-1">${inner}</div>
   </main>
   <nav class="mobile-nav">${ml('dashboard','Actions')}${ml('projects','Projects')}${ml('invoices','Invoices')}${ml('insights','Insights')}${ml('clients','Clients')}</nav>`;
 }

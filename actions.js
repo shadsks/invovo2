@@ -690,6 +690,23 @@ const App={
   uploadQR(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{state.settings.pay.qr=r.result;toast('QR uploaded',true);commit();};r.readAsDataURL(f);},
   resetDemo(){openConfirm('Reset to demo data?','This replaces everything with the seeded demo studio.',()=>{state=seed();toast('Demo data restored',true);go('#/');commit();});},
   wipe(){openConfirm('Wipe all data?','This clears everything and cannot be undone.',()=>{const s=seed().settings;state={settings:s,clients:[],projects:[],invoices:[]};state.settings.invoiceSeq=1000;toast('All data wiped');go('#/');commit();},true);},
+  /* ---- BIR tax estimator ---- */
+  saveTax(){const t=state.settings.tax||(state.settings.tax={enabled:false,regime:'8pct'});t.enabled=$('#tax-enabled').checked;t.regime=$('#tax-regime').value==='graduated'?'graduated':'8pct';toast('Tax settings saved',true);commit();},
+  async aiTaxExplain(){
+    if(!aiReady()){toast('Turn on smart features in Settings first');return;}
+    const est=taxEstimate(taxYTD()),dl=nextTaxDeadline();
+    openModal('Tax read',`<div id="tax-out" class="hint">${ico('clock')} Reading your numbers…</div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);
+    try{
+      const sys='You explain Philippine BIR tax basics to a self-employed creative freelancer in plain language. Given their year-to-date gross receipts and the estimated tax under the 8% option versus graduated rates with 40% OSD plus 3% percentage tax, explain what the numbers mean, which setup looks cheaper for them and why, how much of each payment to set aside, and what to prepare before the next filing deadline. Remind them these are planning estimates and their accountant or their BIR Certificate of Registration has the final say. Keep it short and concrete.';
+      const usr=`Gross receipts this year: ${fmt(est.gross)}\n8% option estimate: ${est.eight==null?'not available (over 3M)':fmt(est.eight)}\nGraduated + OSD estimate: ${fmt(est.grad)}\nTheir current setup: ${est.regime==='8pct'?'8% option':'graduated'}\nSet-aside rate: ${est.pct}% of receipts\nNext deadline: ${dl.label} on ${fmtDate(dl.date)} (${relDays(dl.days)})`;
+      const reply=await aiChat('followup',[{role:'system',content:sys},{role:'user',content:usr}],{temperature:0.4,max_tokens:600});
+      const host=document.getElementById('tax-out');if(host)host.outerHTML=`<textarea class="input" style="min-height:240px;font-size:13px;line-height:1.5">${esc(reply.trim())}</textarea>`;
+    }catch(e){App._aiErr('tax-out',e);}
+  },
+  /* ---- license / devices ---- */
+  signOut(){if(!window.Auth)return;openConfirm('Sign out this device?','You will need your serial key to unlock it again. Your billing data stays on this device.',()=>{Auth.signOut();},false);},
+  async removeDevice(shortId){if(!window.Auth)return;const r=await Auth.removeDevice(shortId);if(r&&r.ok){toast('Device removed',true);render();}else{toast('Could not remove that device');}},
+  async refreshDevices(){if(!window.Auth)return;const r=await Auth.refreshStatus();if(r&&r.ok){render();}else{toast('Could not reach the licensing server');}},
 };
 
 /* ============================== BOOT ============================== */
@@ -699,4 +716,5 @@ const App={
   document.documentElement.setAttribute('data-theme',th);
 })();
 state=load()||seed();
-render();
+/* Gate the app behind the serial-key login (preview mode on localhost/file://). Auth.boot() renders. */
+if(window.Auth&&Auth.boot){Auth.boot();}else{render();}
